@@ -231,6 +231,21 @@ class ClientTest < Minitest::Test
     refute_nil resp.data
   end
 
+  def test_block_called
+    c = Example::HaberdasherClient.new(conn_stub("/example.Haberdasher/MakeHat") {|req|
+      [200, jsonheader, '{}']
+    }, content_type: "application/json")
+
+    resp = c.make_hat(Example::Size.new(inches: 666)) do |resp|
+      resp.then do |resp|
+        # do cool stuff here?
+        assert_equal resp.status, 200
+      end
+    end
+    assert_nil resp.error
+    refute_nil resp.data
+  end
+
   def test_json_error
     c = Example::HaberdasherClient.new(conn_stub("/example.Haberdasher/MakeHat") {|req|
       [500, {}, json(code: "internal", msg: "something went wrong")]

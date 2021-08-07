@@ -39,8 +39,8 @@ module Twirp
       # Hook for ServiceDSL#rpc to define a new method client.<ruby_method>(input, req_opts).
       def rpc_define_method(rpcdef)
         unless method_defined? rpcdef[:ruby_method] # collision with existing rpc method
-          define_method rpcdef[:ruby_method] do |input, req_opts=nil|
-            rpc(rpcdef[:rpc_method], input, req_opts)
+          define_method rpcdef[:ruby_method] do |input, req_opts=nil, &block|
+            rpc(rpcdef[:rpc_method], input, req_opts,&block)
           end
         end
       end
@@ -148,7 +148,7 @@ module Twirp
     # or the attributes (Hash) to instantiate it. Returns a ClientResp instance with an instance of
     # output_class, or a Twirp::Error. The input and output classes are the ones configued with the rpc DSL.
     # If rpc_method was not defined with the rpc DSL then a response with a bad_route error is returned instead.
-    def rpc(rpc_method, input, req_opts=nil)
+    def rpc(rpc_method, input, req_opts=nil, &block)
       rpcdef = self.class.rpcs[rpc_method.to_s]
       if !rpcdef
         return ClientResp.new(nil, Twirp::Error.bad_route("rpc not defined on this client"))
@@ -160,6 +160,11 @@ module Twirp
       body = Encoding.encode(input, rpcdef[:input_class], content_type)
 
       resp = self.class.make_http_request(@conn, @service_full_name, rpc_method, content_type, req_opts, body)
+
+      if block
+        block.call(resp)
+      end
+
       if resp.status != 200
         return ClientResp.new(nil, self.class.error_from_response(resp))
       end
